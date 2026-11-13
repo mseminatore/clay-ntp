@@ -3,11 +3,95 @@
 // Usage:
 //   import("ntp")
 //
-//   Ntp greet("world") println      // Hello, world!
+//   Ntp parse(reply, request, sentMs, receivedMs)  //
 //
 // Every brick shares one set of top-level names with the program that imports
 // it, so keep yours few and distinctive: typically just the objects you provide.
 
 Ntp = Object clone {
-    greet(who) { "Hello, " + who + "!" }
+
+    // raise unless data is a String; who names the calling method in the message
+    _need(data, who) {
+        (data type == "String") ifFalse {
+            raise("ntp " + who + ": expects a String (got " + data type + ")")
+        }
+    }
+
+    _check(pred, msg) {
+        pred ifFalse { raise("ntp ${msg}") }
+    }
+
+    // helper to extract an integer from the String of bytes
+    _be32(data, at) {
+        b0 = data byteAt(at)
+        b1 = data byteAt(at + 1)
+        b2 = data byteAt(at + 2)
+        b3 = data byteAt(at + 3)
+
+        (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
+    }
+
+    // helper to convert data packet entries to milliseconds since 1970
+    _toMillis(data, at) {
+        secs = self _be32(data, at)
+        frac = self _be32(data, at + 4)
+
+        // 2036 and later (RFC 4330))
+        (secs < 2147483648) ifTrue { secs = secs + 4294967296 }
+        ((secs - 2208988800) * 1000) + (frac * 1000 / 4294967296)
+    }
+
+    // parse the NTP data
+    parse(reply, request, sentMs, receivedMs) {
+        // Not a String, or under 48 bytes.
+        self _need(reply, "parse")
+        self _check((reply length >= 48), "parse: reply too small")
+
+        self _need(request, "parse")
+        self _check((request length >= 48), "parse: request too small")
+
+        // Not an integer
+        ((sentMs type == "Number") && (sentMs toInt == sentMs)) ifFalse { 
+            raise("ntp parse: sentMs must be an integer number of milliseconds")
+        }
+
+        ((receivedMs type == "Number") && (receivedMs toInt == receivedMs)) ifFalse { 
+            raise("ntp parse: receivedMs must be an integer number of milliseconds")
+        }
+    
+        // Not a server reply: byte0 % 8 must be 4.
+        b0 = reply byteAt(0)
+        self _check(b0 % 8 == 4, "parse: not a server reply")
+
+        // Version bits must be 3 or 4.
+        version = (b0 >> 3) & 7
+        self _check(version == 3 || version == 4, "parse: incorrect version")
+
+        // The echoed bytes reply slice(24, 32) must equal request slice(40, 48).
+        self _check((reply slice(24, 32)) == (request slice(40, 48)), "parse: request/reply mismatch")
+
+        // Stratum 0 is a "kiss-o'-death", and its reason is at slice(12, 16) (for example RATE), so put it in the message.
+        stratum = reply byteAt(1)
+        self _check(stratum != 0,"parse: kiss of death ${reply slice(12, 16)}")
+
+        // Leap (byte0 / 64) of 3 means unsynchronized.
+        leap = b0 / 64
+        self _check(leap != 3, "parse: unsynchronized")
+
+        // Stratum above 15 is invalid.
+        self _check(stratum <= 15, "parse: invalid stratum")
+
+        t1 = sentMs
+        t2 = self _toMillis(reply, 32)
+        t3 = self _toMillis(reply, 40)
+        t4 = receivedMs
+
+        #{
+            "time": t3,
+            "offset": ((t2 - t1) + (t3 - t4)) / 2,
+            "delay": (t4 - t1) - (t3 - t2),
+            "stratum": stratum,
+            "leap": leap
+        }
+    }
 }

@@ -1,5 +1,6 @@
 // Tests for the ntp brick. Run them from the brick's directory:
 //   clay tests/test_ntp.clay
+//
 // (a brick can be imported by its own name from inside its own directory)
 import("ntp")
 
@@ -8,10 +9,134 @@ check = { |what, ok|
     ok ifFalse { ("FAIL: " + what) println; failures = failures + 1 }
 }
 
-check value("greet", (Ntp greet("world")) == "Hello, world!")
+// helpers for test cases that raise: the error's type, and its message
+raises = { |block| try { block value; "no error" } catch { |e| e type } }
+messageOf = { |block| try { block value; "no error" } catch { |e| e message } }
 
+bytes32 = { |n| 
+    String fromBytes([(n / 16777216) % 256, (n / 65536) % 256, (n / 256) % 256, n % 256])
+}
+
+stampOf = { |ms|                       // unix ms -> 8 timestamp bytes
+    secs = ms / 1000 + 2208988800
+    frac = ((ms % 1000) * 4294967296 + 999) / 1000        // + 999: round UP
+    (bytes32 value(secs % 4294967296)) + (bytes32 value(frac))
+}
+
+// a 48-byte client request: byte 0 = 35, 8 nonce bytes at 40..47
+nonce = String fromBytes([1, 2, 3, 4, 5, 6, 7, 8])
+request = String fromBytes([35]) + ((String chr(0)) repeat(39)) + nonce
+
+// build a server reply. kiss is 4 chars (used when stratum is 0)
+reply = { |b0, stratum, kiss, echo, t2, t3|
+    (String fromBytes([b0, stratum])) + ((String chr(0)) repeat(10)) + kiss +
+    ((String chr(0)) repeat(8)) + echo + (stampOf value(t2)) + (stampOf value(t3))
+}
+
+// ┌────────────────────┬────────────────────────┬──────────────────┐
+// │        Case        │   Seconds, fraction    │ Expected Unix ms │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ a real time        │ 4003520545, 266287973  │ 1794531745062    │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ half a second      │ 3000000000, 2147483648 │ 791011200500     │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ maximum fraction   │ 3000000000, 4294967295 │ 791011200999     │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ era 1              │ 100, 0                 │ 2085978596000    │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ last era-1 second  │ 2147483647, 0          │ 4233462143000    │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ first era-0 second │ 2147483648, 0          │ -61505152000     │
+// ├────────────────────┼────────────────────────┼──────────────────┤
+// │ the Unix epoch     │ 2208988800, 0          │ 0                │
+// └────────────────────┴────────────────────────┴──────────────────┘
+
+// setup known value cases to helper _toMillis()
+secs = [4003520545, 3000000000, 3000000000, 100, 2147483647, 2147483648, 2208988800]
+fracs = [266287973, 2147483648, 4294967295, 0, 0, 0, 0 ]
+expected = [1794531745062, 791011200500, 791011200999, 2085978596000, 4233462143000, -61505152000, 0]
+names = [
+    "a real time", 
+    "half a second", 
+    "maximum fraction", 
+    "era 1", 
+    "last era-1 second",
+    "first era-0 second",
+    "the Unix epoch"
+]
+
+secs length times { |i| 
+    data = bytes32 value(secs at(i)) + bytes32 value(fracs at(i))
+    check value("parse ${names at(i)}", (Ntp _toMillis(data, 0)) == expected at(i))
+}
+
+// ┌────────────┬───────────────────────────────────────┬───────────────────┐
+// │    Case    │                 Input                 │     Expected      │
+// ├────────────┼───────────────────────────────────────┼───────────────────┤
+// │            │ b0 36, stratum 2, T1 = 1794531745000, │ offset 50, delay  │
+// │ normal     │  T2 = T1+60, T3 = T1+62, T4 = T1+22   │ 20, time T3,      │
+// │            │                                       │ stratum 2, leap 0 │
+// ├────────────┼───────────────────────────────────────┼───────────────────┤
+// │ local      │                                       │ offset −20, delay │
+// │ clock      │ T2 = T1−10, T3 = T1−8, T4 = T1+22     │  20               │
+// │ ahead      │                                       │                   │
+// ├────────────┼───────────────────────────────────────┼───────────────────┤
+// │            │ short reply, b0 35, version 2 (b0 20) │                   │
+// │ each       │  and version 5 (b0 44), wrong echo,   │ each raises its   │
+// │ rejection  │ stratum 0, leap 3 (b0 228), stratum   │ message           │
+// │            │ 16                                    │                   │
+// └────────────┴───────────────────────────────────────┴───────────────────┘
+
+// A reply is [b0, stratum] + 10 zero bytes + 4 bytes at 12–15 (the kiss code, "RATE") + 8 zero bytes + the echo (request slice(40, 48)) + stampOf(t2) + stampOf(t3).
+kiss = String chr(0) repeat(4)
+
+t1 = 1794531745000
+good = reply value(36, 2, kiss, nonce, t1 + 60, t1 + 62)
+
+r = Ntp parse(good, request, t1, t1 + 22)
+check value("offset", r get("offset") == 50)
+check value("delay",  r get("delay") == 20)
+check value("time",   r get("time") == t1 + 62)
+check value("stratum", r get("stratum") == 2)
+check value("leap",   r get("leap") == 0)
+
+local_ahead = reply value(36, 2, kiss, nonce, t1 - 10, t1 - 8)
+r = Ntp parse(local_ahead, request, t1, t1 + 22)
+check value("offset", r get("offset") == -20)
+check value("delay", r get("delay") == 20)
+
+// test negative cases
+rejects = { |what, rep, msg|
+    check value(what, (messageOf value({Ntp parse(rep, request, t1, t1 + 22)})) == msg)
+}
+
+// Not a String, or under 48 bytes.
+check value ("parse not a string", (raises value({Ntp parse(23)})) == "RuntimeError")
+rejects value("short reply", good slice(0, 47), "ntp parse: reply too small")
+
+// Not a server reply: byte0 % 8 must be 4.
+rejects value("client mode", reply value(35, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: not a server reply")
+
+// Version ((byte0 / 8) % 8) must be 3 or 4.
+rejects value("version 2",   reply value(20, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: incorrect version")
+rejects value("version 5",   reply value(44, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: incorrect version")
+
+// The echoed bytes reply slice(24, 32) must equal request slice(40, 48).
+rejects value("wrong echo",  reply value(36, 2, kiss, "XXXXXXXX", t1 + 60, t1 + 62), "ntp parse: request/reply mismatch")
+
+// Stratum 0 is a "kiss-o'-death", and its reason is at slice(12, 16) (for example RATE), so put it in the message.
+rejects value("kiss of death", reply value(36, 0, "RATE", nonce, t1 + 60, t1 + 62), "ntp parse: kiss of death RATE")
+
+// Leap (byte0 / 64) of 3 means unsynchronized.
+rejects value("unsynchronized", reply value(228, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: unsynchronized")
+
+// Stratum above 15 is invalid.
+rejects value("stratum 16",  reply value(36, 16, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: invalid stratum")
+
+// see if we passed all tests
 (failures > 0) ifTrue {
     (failures toString + " checks failed") println
     System exit(1)
 }
+
 "ntp tests passed" println
