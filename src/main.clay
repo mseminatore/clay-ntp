@@ -1,0 +1,13 @@
+// ntp -- TODO: what this brick does, in one line
+//
+// Usage:
+//   import("ntp")
+//
+//   Ntp greet("world") println      // Hello, world!
+//
+// Every brick shares one set of top-level names with the program that imports
+// it, so keep yours few and distinctive: typically just the objects you provide.
+
+Ntp = Object clone {
+    greet(who) { "Hello, " + who + "!" }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "ntp",
+  "version": "0.1.0",
+  "description": "Time synchronization via ntp service",
+  "main": "src/main.clay",
+  "deps": {}
+}
