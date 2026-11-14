@@ -1,7 +1,6 @@
 # clay-ntp
 
-A brick for [Clay](https://github.com/mseminatore/clay) that asks an NTP server for the time and
-tells you how far your clock is off.
+A brick for [Clay](https://github.com/mseminatore/clay) that works as an SNTP client to ask an NTP server for the time. It calculates how far your clock is off.
 
 ```clay
 import("ntp")

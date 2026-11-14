@@ -1,7 +1,7 @@
 {
   "name": "ntp",
-  "version": "0.1.0",
-  "description": "Time synchronization via ntp service",
+  "version": "0.1.1",
+  "description": "Simple NTP (SNTP) client: ask a server for the time and your clock's offset",
   "main": "src/main.clay",
   "deps": {
     "hex": "github.com/mseminatore/clay-hex@v0.1.1"
