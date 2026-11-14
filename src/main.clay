@@ -3,7 +3,7 @@
 // Usage:
 //   import("ntp")
 //
-//  Ntp parse(reply, request, sentMs, receivedMs)   // parse and avlidate reply
+//  Ntp parse(reply, request, sentMs, receivedMs)   // parse and validate reply
 //  Ntp request()                                   // build and return request
 //  Ntp query(host, port, timeoutMs)                // query an NTP server
 //
