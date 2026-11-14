@@ -7,6 +7,14 @@
 //  Ntp request()                                   // build and return request
 //  Ntp query(host, port, timeoutMs)                // query an NTP server
 //
+// Note: Ntp can't change the system clock. So common usage would be:
+//  r = Ntp query(host, port, timeoutMs)
+//  offset = r get("offset")
+//  trueNow = Date nowMillis + offset
+//
+// A long-running program might query offset once at startup and again
+// periodically, correcting the reported system time.
+//
 // Every brick shares one set of top-level names with the program that imports
 // it, so keep yours few and distinctive: typically just the objects you provide.
 
