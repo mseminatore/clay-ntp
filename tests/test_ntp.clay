@@ -145,10 +145,15 @@ silent = Socket udp(0)
 start = Date nowMillis
 check value("query times out when nobody answers",
     (raises value({ Ntp query("127.0.0.1", silent localPort, 200) })) == "TimeoutError")
+
 elapsed = Date nowMillis - start
+
 check value("the timeout is about what was asked", elapsed >= 150 && elapsed < 2000)
 silent close
 
+check value("query accepts just a host",
+    (raises value({ Ntp query("no.such.host.invalid") })) == "SocketError")
+    
 // test bad host
 check value("query to an unknown host raises SocketError",
     (raises value({ Ntp query("no.such.host.invalid", 123, 200) })) == "SocketError")

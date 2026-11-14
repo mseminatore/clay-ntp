@@ -5,7 +5,7 @@
 //
 //  Ntp parse(reply, request, sentMs, receivedMs)   // parse and validate reply
 //  Ntp request()                                   // build and return request
-//  Ntp query(host, port, timeoutMs)                // query an NTP server
+//  Ntp query(host)           // query an NTP server using default port and timeout
 //
 // Note: Ntp can't change the system clock. So common usage would be:
 //  r = Ntp query(host, port, timeoutMs)
@@ -60,8 +60,8 @@ Ntp = Object clone {
         String fromBytes([35]) + ((String chr(0)) repeat(39)) + nonce
     }
 
-    // make an NPT query
-    query(host, port, timeoutMs) {
+    // make an NTP query
+    query(host, port = 123, timeoutMs = 3000) {
         s = Socket udp setTimeout(timeoutMs)
 
         try {

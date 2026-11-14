@@ -2,7 +2,7 @@
 //   clay examples/ntp_time.clay
 import("ntp")
 
-r = Ntp query("pool.ntp.org", 123, 3000)
+r = Ntp query("pool.ntp.org")
 
 ("server time (Unix ms): " + r get("time") toString) println
 ("your clock is off by:  " + r get("offset") toString + " ms") println

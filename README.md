@@ -5,7 +5,7 @@ A brick for [Clay](https://github.com/mseminatore/clay) that works as an SNTP cl
 ```clay
 import("ntp")
 
-r = Ntp query("pool.ntp.org", 123, 3000)
+r = Ntp query("pool.ntp.org")
 ("your clock is off by " + r get("offset") toString + " ms") println
 ```
 
@@ -14,7 +14,7 @@ privileges, and `chrony`, `ntpd` or Windows Time already do that well). To use c
 program, add the offset yourself:
 
 ```clay
-offset = (Ntp query("pool.ntp.org", 123, 3000)) get("offset")
+offset = (Ntp query("pool.ntp.org")) get("offset")
 trueNow = Date nowMillis + offset       // Unix time in ms, corrected
 ```
 
@@ -35,7 +35,7 @@ This also installs the [hex](https://github.com/mseminatore/clay-hex) brick, whi
 
 | Call | Returns |
 |---|---|
-| `Ntp query(host, port, timeoutMs)` | asks the server and returns the Dict described below. Port 123 is the standard one. |
+| `Ntp query(host, port = 123, timeoutMs = 3000)` | asks the server and returns the Dict described below. Port 123 is the standard one. |
 | `Ntp request` | the 48-byte request packet (a fresh random nonce each time) |
 | `Ntp parse(reply, request, sentMs, receivedMs)` | checks a server's reply to `request` and returns the Dict. `sentMs` and `receivedMs` are your clock's time (`Date nowMillis`) just before sending and just after receiving, as integers |
 

@@ -10,7 +10,7 @@ on:
 
 env:
   # The Clay to test with: a branch, or a release tag such as v0.2.0
-  CLAY_REF: main
+  CLAY_REF: v0.3.0
 
 jobs:
   test:
