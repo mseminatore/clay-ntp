@@ -1,20 +1,26 @@
 # ntp
 
-TODO: what ntp does.
+Query for clock synchronization data through NTP
 
 ```clay
 import("ntp")
 
-Ntp greet("world") println      // Hello, world!
+// On success returns a Dict with time, offset, delay, stratum, and leap
+r = Ntp query("pool.ntp.org", 123, 3000)
+
 ```
+
+## Dependencies
+
+The `ntp` brick uses the `hex` brick.
 
 ## Install
 
 ```sh
-clay bricks add github.com/YOU/ntp
+clay bricks add github.com/mseminatore/ntp
 ```
 
-## Develop
+## Testing
 
 ```sh
 clay tests/test_ntp.clay       # a brick can import itself by name

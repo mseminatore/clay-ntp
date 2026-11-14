@@ -1,12 +1,16 @@
-// ntp -- TODO: what this brick does, in one line
+// ntp -- Network Time Protocol brick
 //
 // Usage:
 //   import("ntp")
 //
-//   Ntp parse(reply, request, sentMs, receivedMs)  //
+//  Ntp parse(reply, request, sentMs, receivedMs)   // parse and avlidate reply
+//  Ntp request()                                   // build and return request
+//  Ntp query(host, port, timeoutMs)                // query an NTP server
 //
 // Every brick shares one set of top-level names with the program that imports
 // it, so keep yours few and distinctive: typically just the objects you provide.
+
+import("hex")
 
 Ntp = Object clone {
 
@@ -17,6 +21,7 @@ Ntp = Object clone {
         }
     }
 
+    // helper to check assertions and raise an error
     _check(pred, msg) {
         pred ifFalse { raise("ntp ${msg}") }
     }
@@ -41,6 +46,31 @@ Ntp = Object clone {
         ((secs - 2208988800) * 1000) + (frac * 1000 / 4294967296)
     }
 
+    // build an NTP request
+    request() {
+        nonce = Hex decode(Crypto randomBytes(8))
+        String fromBytes([35]) + ((String chr(0)) repeat(39)) + nonce
+    }
+
+    // make an NPT query
+    query(host, port, timeoutMs) {
+        s = Socket udp setTimeout(timeoutMs)
+
+        try {
+            req = self request
+            t1 = Date nowMillis
+            s sendTo(host, port, req)
+
+            [data, _host, _port] = s receiveFrom(512)
+            t4 = Date nowMillis
+
+            self parse(data, req, t1, t4)
+
+        } finally {
+            s close
+        }
+    }
+
     // parse the NTP data
     parse(reply, request, sentMs, receivedMs) {
         // Not a String, or under 48 bytes.
@@ -61,7 +91,7 @@ Ntp = Object clone {
     
         // Not a server reply: byte0 % 8 must be 4.
         b0 = reply byteAt(0)
-        self _check(b0 % 8 == 4, "parse: not a server reply")
+        self _check(b0 & 7 == 4, "parse: not a server reply")
 
         // Version bits must be 3 or 4.
         version = (b0 >> 3) & 7
@@ -75,7 +105,7 @@ Ntp = Object clone {
         self _check(stratum != 0,"parse: kiss of death ${reply slice(12, 16)}")
 
         // Leap (byte0 / 64) of 3 means unsynchronized.
-        leap = b0 / 64
+        leap = b0 >> 6
         self _check(leap != 3, "parse: unsynchronized")
 
         // Stratum above 15 is invalid.

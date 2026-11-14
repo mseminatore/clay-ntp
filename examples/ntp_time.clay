@@ -1,0 +1,10 @@
+// Ask a public NTP server for the time. Run from the brick's directory:
+//   clay examples/ntp_time.clay
+import("ntp")
+
+r = Ntp query("pool.ntp.org", 123, 3000)
+
+("server time (Unix ms): " + r get("time") toString) println
+("your clock is off by:  " + r get("offset") toString + " ms") println
+("round-trip delay:      " + r get("delay") toString + " ms") println
+("stratum:               " + r get("stratum") toString) println

@@ -1,0 +1,10 @@
+{
+  "lockfile_version": 1,
+  "locked": {
+    "hex": {
+      "url": "github.com/mseminatore/clay-hex@v0.1.1",
+      "version": "v0.1.1",
+      "resolved": "7f5686557d6faa242ea47162d8e90bec1fc6766e"
+    }
+  }
+}

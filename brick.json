@@ -3,5 +3,7 @@
   "version": "0.1.0",
   "description": "Time synchronization via ntp service",
   "main": "src/main.clay",
-  "deps": {}
+  "deps": {
+    "hex": "github.com/mseminatore/clay-hex@v0.1.1"
+  }
 }
