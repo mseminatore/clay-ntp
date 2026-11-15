@@ -10,8 +10,8 @@ check = { |what, ok|
 }
 
 // helpers for test cases that raise: the error's type, and its message
-raises = { |block| try { block value; "no error" } catch { |e| e type } }
-messageOf = { |block| try { block value; "no error" } catch { |e| e message } }
+raises = { |block| try { block(); "no error" } catch { |e| e type } }
+messageOf = { |block| try { block(); "no error" } catch { |e| e message } }
 
 bytes32 = { |n| 
     String fromBytes([n >> 24 & 0xff, n >> 16 & 0xff, n >> 8 & 0xFF, n & 0xFF])
@@ -20,7 +20,7 @@ bytes32 = { |n|
 stampOf = { |ms|                       // unix ms -> 8 timestamp bytes
     secs = ms / 1000 + 2208988800
     frac = ((ms % 1000) * 4294967296 + 999) / 1000        // + 999: round UP
-    (bytes32 value(secs % 4294967296)) + (bytes32 value(frac))
+    (bytes32(secs % 4294967296)) + (bytes32(frac))
 }
 
 // a 48-byte client request: byte 0 = 35, 8 nonce bytes at 40..47
@@ -30,7 +30,7 @@ request = String fromBytes([35]) + ((String chr(0)) repeat(39)) + nonce
 // build a server reply. kiss is 4 chars (used when stratum is 0)
 reply = { |b0, stratum, kiss, echo, t2, t3|
     (String fromBytes([b0, stratum])) + ((String chr(0)) repeat(10)) + kiss +
-    ((String chr(0)) repeat(8)) + echo + (stampOf value(t2)) + (stampOf value(t3))
+    ((String chr(0)) repeat(8)) + echo + (stampOf(t2)) + (stampOf(t3))
 }
 
 // setup known-value cases for helper _toMillis()
@@ -48,82 +48,82 @@ names = [
 ]
 
 secs length times { |i| 
-    data = bytes32 value(secs at(i)) + bytes32 value(fracs at(i))
-    check value("parse ${names at(i)}", (Ntp _toMillis(data, 0)) == expected at(i))
+    data = bytes32(secs at(i)) + bytes32(fracs at(i))
+    check("parse ${names at(i)}", (Ntp _toMillis(data, 0)) == expected at(i))
 }
 
 // A reply is [b0, stratum] + 10 zero bytes + 4 bytes at 12–15 (the kiss code, "RATE") + 8 zero bytes + the echo (request slice(40, 48)) + stampOf(t2) + stampOf(t3).
 kiss = String chr(0) repeat(4)
 
 t1 = 1794531745000
-good = reply value(36, 2, kiss, nonce, t1 + 60, t1 + 62)
+good = reply(36, 2, kiss, nonce, t1 + 60, t1 + 62)
 
 r = Ntp parse(good, request, t1, t1 + 22)
-check value("offset", r get("offset") == 50)
-check value("delay",  r get("delay") == 20)
-check value("time",   r get("time") == t1 + 62)
-check value("stratum", r get("stratum") == 2)
-check value("leap",   r get("leap") == 0)
+check("offset", r get("offset") == 50)
+check("delay",  r get("delay") == 20)
+check("time",   r get("time") == t1 + 62)
+check("stratum", r get("stratum") == 2)
+check("leap",   r get("leap") == 0)
 
-local_ahead = reply value(36, 2, kiss, nonce, t1 - 10, t1 - 8)
+local_ahead = reply(36, 2, kiss, nonce, t1 - 10, t1 - 8)
 r = Ntp parse(local_ahead, request, t1, t1 + 22)
-check value("offset", r get("offset") == -20)
-check value("delay", r get("delay") == 20)
+check("offset", r get("offset") == -20)
+check("delay", r get("delay") == 20)
 
-r1 = Ntp parse(reply value(100, 2, kiss, nonce, t1+60, t1+62), request, t1, t1+22)
-check value("leap 1 accepted and returned", r1 get("leap") == 1)
+r1 = Ntp parse(reply(100, 2, kiss, nonce, t1+60, t1+62), request, t1, t1+22)
+check("leap 1 accepted and returned", r1 get("leap") == 1)
 
-r2 = Ntp parse(reply value(164, 2, kiss, nonce, t1+60, t1+62), request, t1, t1+22)
-check value("leap 2 accepted and returned", r2 get("leap") == 2)
+r2 = Ntp parse(reply(164, 2, kiss, nonce, t1+60, t1+62), request, t1, t1+22)
+check("leap 2 accepted and returned", r2 get("leap") == 2)
 
-r15 = Ntp parse(reply value(36, 15, kiss, nonce, t1+60, t1+62), request, t1, t1+22)
-check value("stratum 15 accepted", r15 get("stratum") == 15)
+r15 = Ntp parse(reply(36, 15, kiss, nonce, t1+60, t1+62), request, t1, t1+22)
+check("stratum 15 accepted", r15 get("stratum") == 15)
 
 // test negative parse() cases
 rejects = { |what, rep, msg|
-    check value(what, (messageOf value({Ntp parse(rep, request, t1, t1 + 22)})) == msg)
+    check(what, (messageOf({Ntp parse(rep, request, t1, t1 + 22)})) == msg)
 }
 
-msg = { |req, sent, recv| messageOf value({Ntp parse(good, req, sent, recv)}) }
-check value("sentMs nil", (msg value(request, nil, t1+22)) == "ntp parse: sentMs must be an integer number of milliseconds")
-check value("sentMs float", (msg value(request, 1.5, t1+22)) == "ntp parse: sentMs must be an integer number of milliseconds")
-check value("receivedMs string", (msg value(request, t1, "x")) == "ntp parse: receivedMs must be an integer number of milliseconds")
-check value("receivedMs float", (msg value(request, t1, 1.5)) == "ntp parse: receivedMs must be an integer number of milliseconds")
+msg = { |req, sent, recv| messageOf({Ntp parse(good, req, sent, recv)}) }
+check("sentMs nil", (msg(request, nil, t1+22)) == "ntp parse: sentMs must be an integer number of milliseconds")
+check("sentMs float", (msg(request, 1.5, t1+22)) == "ntp parse: sentMs must be an integer number of milliseconds")
+check("receivedMs string", (msg(request, t1, "x")) == "ntp parse: receivedMs must be an integer number of milliseconds")
+check("receivedMs float", (msg(request, t1, 1.5)) == "ntp parse: receivedMs must be an integer number of milliseconds")
 
 // Not a String, or under 48 bytes.
-check value("short request", (msg value(request slice(0, 10), t1, t1+22)) == "ntp parse: request too small")
-check value("request not a String", (msg value(5, t1, t1+22)) == "ntp parse: expects a String (got Number)")
+check("short request", (msg(request slice(0, 10), t1, t1+22)) == "ntp parse: request too small")
+check("request not a String", (msg(5, t1, t1+22)) == "ntp parse: expects a String (got Number)")
 
 // Not a server reply: byte0 % 8 must be 4.
-rejects value("client mode", reply value(35, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: not a server reply")
+rejects("client mode", reply(35, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: not a server reply")
 
 // Version ((byte0 / 8) % 8) must be 3 or 4.
-rejects value("version 2",   reply value(20, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: incorrect version")
-rejects value("version 5",   reply value(44, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: incorrect version")
+rejects("version 2", reply(20, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: incorrect version")
+rejects("version 5", reply(44, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: incorrect version")
 
 // The echoed bytes reply slice(24, 32) must equal request slice(40, 48).
-rejects value("wrong echo",  reply value(36, 2, kiss, "XXXXXXXX", t1 + 60, t1 + 62), "ntp parse: request/reply mismatch")
+rejects("wrong echo", reply(36, 2, kiss, "XXXXXXXX", t1 + 60, t1 + 62), "ntp parse: request/reply mismatch")
 
 // Stratum 0 is a "kiss-o'-death", and its reason is at slice(12, 16) (for example RATE), so put it in the message.
-rejects value("kiss of death", reply value(36, 0, "RATE", nonce, t1 + 60, t1 + 62), "ntp parse: kiss of death RATE")
+rejects("kiss of death", reply(36, 0, "RATE", nonce, t1 + 60, t1 + 62), "ntp parse: kiss of death RATE")
 
 // Leap (byte0 / 64) of 3 means unsynchronized.
-rejects value("unsynchronized", reply value(228, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: unsynchronized")
+rejects("unsynchronized", reply(228, 2, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: unsynchronized")
 
 // Stratum above 15 is invalid.
-rejects value("stratum 16",  reply value(36, 16, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: invalid stratum")
+rejects("stratum 16", reply(36, 16, kiss, nonce, t1 + 60, t1 + 62), "ntp parse: invalid stratum")
 
 // test request()
 r = Ntp request
-check value("request is 48 bytes", r length == 48)
-check value("request byte 0 is 35", (r byteAt(0)) == 35)
-check value("request bytes 1..39 are zero", (r slice(1, 40)) == ((String chr(0)) repeat(39)))
-check value("two requests differ", (Ntp request) != (Ntp request))
-check value("nonce is not all zero", (r slice(40, 48)) != ((String chr(0)) repeat(8)))
+check("request is 48 bytes", r length == 48)
+check("request byte 0 is 35", (r byteAt(0)) == 35)
+check("request bytes 1..39 are zero", (r slice(1, 40)) == ((String chr(0)) repeat(39)))
+check("two requests differ", (Ntp request) != (Ntp request))
+check("nonce is not all zero", (r slice(40, 48)) != ((String chr(0)) repeat(8)))
 
 req = Ntp request
-rep = reply value(36, 2, kiss, req slice(40, 48), t1 + 60, t1 + 62)
-check value("a reply to a real request parses", (Ntp parse(rep, req, t1, t1 + 22)) get("offset") == 50)
+rep = reply(36, 2, kiss, req slice(40, 48), t1 + 60, t1 + 62)
+check("a reply to a real request parses", (Ntp parse(rep, req, t1, t1 + 22)) get("offset") == 50)
 
 // test nonce randomness
 // every nonce byte is random: each position takes more than one value over 20 requests
@@ -137,26 +137,26 @@ seen = []
 
 8 times { |i|
     values = seen at(i)
-    check value("nonce byte ${i} varies", values unique size > 1)
+    check("nonce byte ${i} varies", values unique size > 1)
 }
 
 // test query()
 silent = Socket udp(0)
 start = Date nowMillis
-check value("query times out when nobody answers",
-    (raises value({ Ntp query("127.0.0.1", silent localPort, 200) })) == "TimeoutError")
+check("query times out when nobody answers",
+    (raises({ Ntp query("127.0.0.1", silent localPort, 200) })) == "TimeoutError")
 
 elapsed = Date nowMillis - start
 
-check value("the timeout is about what was asked", elapsed >= 150 && elapsed < 2000)
+check("the timeout is about what was asked", elapsed >= 150 && elapsed < 2000)
 silent close
 
-check value("query accepts just a host",
-    (raises value({ Ntp query("no.such.host.invalid") })) == "SocketError")
-    
+check("query accepts just a host",
+    (raises({ Ntp query("no.such.host.invalid") })) == "SocketError")
+
 // test bad host
-check value("query to an unknown host raises SocketError",
-    (raises value({ Ntp query("no.such.host.invalid", 123, 200) })) == "SocketError")
+check("query to an unknown host raises SocketError",
+    (raises({ Ntp query("no.such.host.invalid", 123, 200) })) == "SocketError")
 
 // see if we passed all tests
 (failures > 0) ifTrue {

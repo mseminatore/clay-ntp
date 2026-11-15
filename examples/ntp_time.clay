@@ -2,8 +2,10 @@
 //   clay examples/ntp_time.clay
 import("ntp")
 
+// make the NTP query
 r = Ntp query("pool.ntp.org")
 
+// print the results
 ("server time (Unix ms): " + r get("time") toString) println
 ("your clock is off by:  " + r get("offset") toString + " ms") println
 ("round-trip delay:      " + r get("delay") toString + " ms") println

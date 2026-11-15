@@ -46,8 +46,8 @@ Ntp = Object clone {
 
     // helper to convert data packet entries to milliseconds since 1970
     _toMillis(data, at) {
-        secs = self _be32(data, at)
-        frac = self _be32(data, at + 4)
+        secs = _be32(data, at)
+        frac = _be32(data, at + 4)
 
         // 2036 and later (RFC 4330))
         (secs < 2147483648) ifTrue { secs = secs + 4294967296 }
@@ -65,14 +65,14 @@ Ntp = Object clone {
         s = Socket udp setTimeout(timeoutMs)
 
         try {
-            req = self request
+            req = request()
             t1 = Date nowMillis
             s sendTo(host, port, req)
 
             [data, _host, _port] = s receiveFrom(512)
             t4 = Date nowMillis
 
-            self parse(data, req, t1, t4)
+            parse(data, req, t1, t4)
 
         } finally {
             s close
@@ -82,11 +82,11 @@ Ntp = Object clone {
     // parse the NTP data
     parse(reply, request, sentMs, receivedMs) {
         // Not a String, or under 48 bytes.
-        self _need(reply, "parse")
-        self _check((reply length >= 48), "parse: reply too small")
+        _need(reply, "parse")
+        _check((reply length >= 48), "parse: reply too small")
 
-        self _need(request, "parse")
-        self _check((request length >= 48), "parse: request too small")
+        _need(request, "parse")
+        _check((request length >= 48), "parse: request too small")
 
         // Not an integer
         ((sentMs type == "Number") && (sentMs toInt == sentMs)) ifFalse { 
@@ -99,29 +99,29 @@ Ntp = Object clone {
     
         // Not a server reply: byte0 % 8 must be 4.
         b0 = reply byteAt(0)
-        self _check(b0 & 7 == 4, "parse: not a server reply")
+        _check(b0 & 7 == 4, "parse: not a server reply")
 
         // Version bits must be 3 or 4.
         version = (b0 >> 3) & 7
-        self _check(version == 3 || version == 4, "parse: incorrect version")
+        _check(version == 3 || version == 4, "parse: incorrect version")
 
         // The echoed bytes reply slice(24, 32) must equal request slice(40, 48).
-        self _check((reply slice(24, 32)) == (request slice(40, 48)), "parse: request/reply mismatch")
+        _check((reply slice(24, 32)) == (request slice(40, 48)), "parse: request/reply mismatch")
 
         // Stratum 0 is a "kiss-o'-death", and its reason is at slice(12, 16) (for example RATE), so put it in the message.
         stratum = reply byteAt(1)
-        self _check(stratum != 0,"parse: kiss of death ${reply slice(12, 16)}")
+        _check(stratum != 0,"parse: kiss of death ${reply slice(12, 16)}")
 
         // Leap (byte0 / 64) of 3 means unsynchronized.
         leap = b0 >> 6
-        self _check(leap != 3, "parse: unsynchronized")
+        _check(leap != 3, "parse: unsynchronized")
 
         // Stratum above 15 is invalid.
-        self _check(stratum <= 15, "parse: invalid stratum")
+        _check(stratum <= 15, "parse: invalid stratum")
 
         t1 = sentMs
-        t2 = self _toMillis(reply, 32)
-        t3 = self _toMillis(reply, 40)
+        t2 = _toMillis(reply, 32)
+        t3 = _toMillis(reply, 40)
         t4 = receivedMs
 
         #{

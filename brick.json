@@ -1,6 +1,7 @@
 {
   "name": "ntp",
-  "version": "0.1.2",
+  "version": "0.2.0",
+  "clay": ">=0.3.3",
   "description": "Simple NTP (SNTP) client: ask a server for the time and your clock's offset",
   "main": "src/main.clay",
   "deps": {
