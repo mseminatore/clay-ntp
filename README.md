@@ -28,9 +28,6 @@ Requires Clay 0.3 or newer (the brick uses the bitwise operators).
 clay bricks add github.com/mseminatore/clay-ntp ntp
 ```
 
-This also installs the [hex](https://github.com/mseminatore/clay-hex) brick, which `ntp` uses
-(`Hex` becomes available to your program too).
-
 ## API
 
 | Call | Returns |

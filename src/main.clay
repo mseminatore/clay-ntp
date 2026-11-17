@@ -18,8 +18,6 @@
 // Every brick shares one set of top-level names with the program that imports
 // it, so keep yours few and distinctive: typically just the objects you provide.
 
-import("hex")
-
 Ntp = Object clone {
 
     // raise unless data is a String; who names the calling method in the message
@@ -54,13 +52,17 @@ Ntp = Object clone {
         ((secs - 2208988800) * 1000) + (frac * 1000 / 4294967296)
     }
 
+    //-------------------------------------
     // build an NTP request
+    //-------------------------------------
     request() {
-        nonce = Hex decode(Crypto randomBytes(8))
+        nonce = Crypto randomBytes(8)
         String fromBytes([35]) + ((String chr(0)) repeat(39)) + nonce
     }
 
+    //-------------------------------------
     // make an NTP query
+    //-------------------------------------
     query(host, port = 123, timeoutMs = 3000) {
         s = Socket udp setTimeout(timeoutMs)
 
@@ -79,7 +81,9 @@ Ntp = Object clone {
         }
     }
 
+    //-------------------------------------
     // parse the NTP data
+    //-------------------------------------
     parse(reply, request, sentMs, receivedMs) {
         // Not a String, or under 48 bytes.
         _need(reply, "parse")
@@ -119,11 +123,17 @@ Ntp = Object clone {
         // Stratum above 15 is invalid.
         _check(stratum <= 15, "parse: invalid stratum")
 
+        //-------------------------------------
+        // extract the timestamps from the reply
+        //-------------------------------------
         t1 = sentMs
         t2 = _toMillis(reply, 32)
         t3 = _toMillis(reply, 40)
         t4 = receivedMs
 
+        //-------------------------------------
+        // return the parsed NTP data
+        //-------------------------------------
         #{
             "time": t3,
             "offset": ((t2 - t1) + (t3 - t4)) / 2,
